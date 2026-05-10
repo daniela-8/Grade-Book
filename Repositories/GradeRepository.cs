@@ -1,3 +1,5 @@
+using System.Net.Http.Json;
+using System.Text.Json;
 using Siemens.Internship2026.GradeBook.Interfaces;
 using Siemens.Internship2026.GradeBook.Models;
 
@@ -5,28 +7,36 @@ namespace Siemens.Internship2026.GradeBook.Repositories;
 
 public class GradeRepository : IGradeRepository
 {
-    private readonly List<Grade> _grades = new()
+    private static readonly JsonSerializerOptions JsonOptions = new()
     {
-        new Grade { Id = 1, Value = 4.25m, IsActive = true },
-        new Grade { Id = 2, Value = 7.50m, IsActive = true },
-        new Grade { Id = 3, Value = 1.99m, IsActive = false },
-        new Grade { Id = 4, Value = 9.75m, IsActive = true },
-        new Grade { Id = 5, Value = 3.00m, IsActive = false },
-        new Grade { Id = 6, Value = 6.49m, IsActive = true },
-        new Grade { Id = 7, Value = 10.00m, IsActive = true },
-        new Grade { Id = 8, Value = 2.30m, IsActive = false },
-        new Grade { Id = 9, Value = 8.10m, IsActive = true },
-        new Grade { Id = 10, Value = 5.00m, IsActive = true }
+        PropertyNameCaseInsensitive = true
     };
 
-    public Task<Grade?> GetByIdAsync(int id)
+    private readonly HttpClient _httpClient;
+
+    private const string DataUrl =
+        "https://gist.githubusercontent.com/ArdeleanTudor/8ea407832cd9794960e0e6bbd1319f6e/raw/145b121103dd1cee3737a681c487f7295ac82e6b/gistfile1.txt";
+
+    public GradeRepository(HttpClient httpClient)
     {
-        var grade = _grades.FirstOrDefault(g => g.Id == id);
-        return Task.FromResult(grade);
+        _httpClient = httpClient;
     }
 
-    public Task<IEnumerable<Grade>> GetAllAsync()
+    public async Task<Grade?> GetByIdAsync(int id)
     {
-        return Task.FromResult(_grades.AsEnumerable());
+        var grades = await FetchGradesAsync();
+        return grades.FirstOrDefault(g => g.Id == id);
+    }
+
+    public async Task<IEnumerable<Grade>> GetAllAsync()
+    {
+        return await FetchGradesAsync();
+    }
+
+    private async Task<List<Grade>> FetchGradesAsync()
+    {
+        var response = await _httpClient.GetStringAsync(DataUrl);
+        var root = JsonSerializer.Deserialize<GradeDataRoot>(response, JsonOptions);
+        return root?.Items ?? new List<Grade>();
     }
 }
